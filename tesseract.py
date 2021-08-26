@@ -4,7 +4,6 @@
 from PIL import Image
 import pytesseract
 import os
-import glob
 import time
 import csv
 
@@ -29,30 +28,32 @@ mywriter = csv.writer(gesamt, dialect='excel', delimiter=';')
 mywriter.writerow(heading)
 
 
-for file in glob.glob(data_path + "/*.*", recursive=True):
-    print("Datei {} wird verarbeitet".format(file))
-    outputfile = file + ".txt"
-    try:
-        data = pytesseract.image_to_string(Image.open(file), lang="eng+deu")
-        if len(data) > 0:
-            with open(outputfile, "w") as target:
-                target.write(data)
-                print("Datei {} erfolgreich abgearbeitet".format(file), file=logfile)
-                counter_processed += 1
-                row = (counter_all, file, "Es wurde Text erkannt", data)
+for root, dirs, files in os.walk(data_path):
+    for file in files:
+        print("Datei {} wird verarbeitet".format(file))
+        try:
+            fullfile = os.path.join(root, file)
+            data = pytesseract.image_to_string(Image.open(fullfile), lang="eng+deu")
+            if len(data) > 0:
+                outputfile = file + ".txt"
+                with open(outputfile, "w") as target:
+                    target.write(data)
+                    print("Datei {} erfolgreich abgearbeitet".format(fullfile), file=logfile)
+                    counter_processed += 1
+                    row = (counter_all, fullfile, "Es wurde Text erkannt", data)
+                    mywriter.writerow(row)
+                    counter_all += 1
+            else:
+                print("Datei {} erfolgreich abgearbeitet, es wurde kein Text gefunden".format(fullfile), file=logfile)
+                row = (counter_all, fullfile, "Es wurde kein Text erkannt",)
                 mywriter.writerow(row)
                 counter_all += 1
-        else:
-            print("Datei {} erfolgreich abgearbeitet, es wurde kein Text gefunden".format(file), file=logfile)
-            row = (counter_all, file, "Es wurde kein Text erkannt",)
+        except:
+            print("Datei {} ist kein Bild, die Datei wurde übersprungen".format(fullfile), file=logfile)
+            counter_skipped += 1
+            row = (counter_all, fullfile, "Datei ist kein Bild und wurde übersprungen",)
             mywriter.writerow(row)
             counter_all += 1
-    except:
-        print("Datei {} ist kein Bild, die Datei wurde übersprungen".format(file), file=logfile)
-        counter_skipped += 1
-        row = (counter_all, file, "Datei ist kein Bild und wurde übersprungen",)
-        mywriter.writerow(row)
-        counter_all += 1
 
 
 print("\n\nEs wurde(n) {} Datei(en) verarbeitet.".format(counter_processed), file=logfile)
